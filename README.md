@@ -7,7 +7,7 @@ ObjectPool-对象池
 
 Singleton-单例模式基类
 
-CoroutineManager-携程管理器
+CoroutineManager-协程管理器
 
 EventManager-全局事件管理器
 
