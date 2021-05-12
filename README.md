@@ -12,3 +12,7 @@ CoroutineManager-协程管理器
 EventManager-全局事件管理器
 
 IInitialize-初始化接口
+
+# Third-Party 第三方插件
+
+TagsSystem-标签系统
