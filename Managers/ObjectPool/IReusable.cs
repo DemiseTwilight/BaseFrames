@@ -2,11 +2,14 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-public interface IReusable
-{
+namespace ObjectPool {
+    public interface IReusable {
 
-    void Spawn();
+        internal ObjectPoolComponent Belong { get; set; }
+        void Get();
 
-    void UnSpawn();
+        void Release();
+
+    }
 
 }
