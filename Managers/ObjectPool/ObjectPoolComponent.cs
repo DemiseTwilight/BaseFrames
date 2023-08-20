@@ -46,6 +46,7 @@ namespace ObjectPool {
         }
         private GameObject OnCreateObject() {
             GameObject obj = Instantiate(prefab,transform);
+            obj.name = prefab.name;
             _objects.Add(obj);
             if (_isReusableObject) {
                 IReusable reusableObject=obj.GetComponent<IReusable>();
@@ -67,10 +68,18 @@ namespace ObjectPool {
 
         private void OnDestroyObj(GameObject destroyObj) {
             _objects.Remove(destroyObj);
-            _reusableDictionary.Remove(destroyObj.GetInstanceID());
+            if (_isReusableObject) {
+                _reusableDictionary.Remove(destroyObj.GetInstanceID());
+            }
             Destroy(destroyObj);
         }
 
+        // ReSharper disable Unity.PerformanceAnalysis
+        /// <summary>
+        /// 加载可重用对象脚本
+        /// </summary>
+        /// <param name="obj"></param>
+        /// <returns></returns>
         private IReusable LoadReusableScript(GameObject obj) {
             if (_reusableDictionary.TryGetValue(obj.GetInstanceID(), out var reusableScript)) {
                 return reusableScript;
@@ -140,36 +149,42 @@ namespace ObjectPool {
             obj.transform.SetPositionAndRotation(position,rotation);
             return obj;
         }
+        // ReSharper disable Unity.PerformanceAnalysis
         /// <summary>
         /// 放回对象
         /// </summary>
         /// <param name="obj"></param>
-        public void Release(GameObject obj) {
-            if (_isReusableObject) {
-                LoadReusableScript(obj)?.Release();
-            }
-            _pool.Release(obj);
-        }
-        /// <summary>
-        /// 放回全部对象
-        /// </summary>
-        public void ReleaseAll() {
-            foreach (var obj in _objects) {
+        /// <param name="triggerResponse"></param>
+        public bool Release(GameObject obj, bool triggerResponse = true) {
+            try {
+                if (_isReusableObject && triggerResponse) {
+                    LoadReusableScript(obj)?.Release();
+                }
                 _pool.Release(obj);
+                return true;
+            }
+            catch (Exception e) {
+                Debug.LogError(e);
+                return false;
             }
         }
+
         /// <summary>
-        /// 放回全部对象并触发每个对象的放回响应
-        /// </summary>
-        public void ReleaseAllTriggerResponse() {
+       /// 放回全部对象
+       /// </summary>
+       /// <param name="triggerResponse">需要响应对可重用对象的回收回调</param>
+        public void ReleaseAll(bool triggerResponse=false) {
             foreach (var obj in _objects) {
-                Release(obj);
+                if (obj.activeSelf) {
+                    Release(obj,triggerResponse);
+                }
             }
         }
-        /// <summary>
+       /// <summary>
         /// 清除对象池
         /// </summary>
         public void Clear() {
+           ReleaseAll();
             _pool.Clear();
         }
     }
