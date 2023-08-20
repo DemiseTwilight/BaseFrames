@@ -28,19 +28,20 @@ namespace ObjectPool {
         /// <summary>
         /// 创建对象池
         /// </summary>
-        public void CreateObjectPool(string objName,bool collectionChecks = true,int defaultCapacity = 10,int maxPoolSize = 100,int preInstantiate = 0) {
+        public ObjectPoolComponent CreateObjectPool(string objName,bool collectionChecks = true,int defaultCapacity = 10,int maxPoolSize = 100,int preInstantiate = 0) {
             var prefab = Resources.Load<GameObject>(objName);
-            CreateObjectPool(prefab, collectionChecks, defaultCapacity, maxPoolSize, preInstantiate);
+            return CreateObjectPool(prefab, collectionChecks, defaultCapacity, maxPoolSize, preInstantiate);
         }
         /// <summary>
         /// 创建对象池
         /// </summary>
-        public void CreateObjectPool(GameObject prefab,bool collectionChecks = true,int defaultCapacity = 10,int maxPoolSize = 100,int preInstantiate = 0) {
+        public ObjectPoolComponent CreateObjectPool(GameObject prefab,bool collectionChecks = true,int defaultCapacity = 10,int maxPoolSize = 100,int preInstantiate = 0) {
             var boot = new GameObject(prefab.name);
             var component = boot.AddComponent<ObjectPoolComponent>();
             FillObjectPoolComponent(ref component, prefab, collectionChecks, defaultCapacity, maxPoolSize,
                 preInstantiate);
             _poolDatas.Add(prefab.name, component);
+            return component;
         }
 
         /// <summary>
