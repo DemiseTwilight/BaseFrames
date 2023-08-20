@@ -7,6 +7,11 @@ using UnityEngine.Pool;
 using UnityEngine.Serialization;
 
 namespace ObjectPool {
+    /// <summary>
+    /// 对象池组件
+    /// 挂载在根节点以使用
+    /// 如要手动创建，请需要生成的对象后使用Initialized方法进行初始化
+    /// </summary>
     public class ObjectPoolComponent : MonoBehaviour {
         private readonly List<GameObject> _objects=new List<GameObject>();
         private ObjectPool<GameObject> _pool;
@@ -16,21 +21,31 @@ namespace ObjectPool {
         public int defaultCapacity = 10;
         public int maxPoolSize = 100;
         /// <summary>
+        /// 预生成对象数
+        /// </summary>
+        public int preInstantiate = 10;
+        /// <summary>
         /// 需要生成的预制体
         /// </summary>
         public GameObject prefab;
-
+        /// <summary>
+        /// 不活跃对象数
+        /// </summary>
         public int CountInactive =>  _pool.CountInactive;
+        /// <summary>
+        /// 活跃对象数
+        /// </summary>
         public int CountActive =>  _pool.CountActive;
+        /// <summary>
+        /// 对象总数
+        /// </summary>
         public int CountAll =>  _pool.CountAll;
 
         private void Awake() {
-            _pool = new ObjectPool<GameObject>(OnCreateObject, OnGet, OnRelease, OnDestroyObj,
-                collectionChecks,defaultCapacity, maxPoolSize);
-            _isReusableObject = prefab.GetComponent<IReusable>() != null;
+            Initialized();
         }
         private GameObject OnCreateObject() {
-            GameObject obj = Instantiate(prefab);
+            GameObject obj = Instantiate(prefab,transform);
             _objects.Add(obj);
             if (_isReusableObject) {
                 IReusable reusableObject=obj.GetComponent<IReusable>();
@@ -44,15 +59,9 @@ namespace ObjectPool {
 
         private void OnGet(GameObject getObj) {
             getObj.SetActive(true);
-            if (_isReusableObject) {
-                LoadReusableScript(getObj)?.Get();
-            }
         }
 
         private void OnRelease(GameObject releaseObj) {
-            if (_isReusableObject) {
-                LoadReusableScript(releaseObj)?.Release();
-            }
             releaseObj.SetActive(false);
         }
 
@@ -71,19 +80,74 @@ namespace ObjectPool {
                 return null;
             }
         }
+
+        /// <summary>
+        /// 预生成
+        /// </summary>
+        private void PreInstantiate() {
+            for (int i = 0; i < preInstantiate; i++) {
+                _pool.Get(out var obj);
+            }
+            ReleaseAll();
+        }
         
+        /// <summary>
+        /// 初始化组件，对象池组件必须在调用初始化后才能使用，如果不存在生成目标，则初始化失败
+        /// 初始化后，原先生成的对象将全部丢失
+        /// </summary>
+        public void Initialized() {
+            if (_pool !=null) {
+                _pool.Clear();
+            }
+            if (prefab) {
+                _pool = new ObjectPool<GameObject>(OnCreateObject, OnGet, OnRelease, OnDestroyObj,
+                    collectionChecks,defaultCapacity, maxPoolSize);
+                _isReusableObject = prefab.GetComponent<IReusable>() != null;
+                PreInstantiate();
+            }
+            else {
+                Debug.LogWarning("对象池初始化失败，请设置需要生成的对象并重新调用Initialized进行初始化");
+            }
+        }
+
         /// <summary>
         /// 取出对象
         /// </summary>
         /// <returns>取出的对象</returns>
         public GameObject Get() {
-            return _pool.Get();
+            var getObj = _pool.Get();
+            if (_isReusableObject) {
+                LoadReusableScript(getObj)?.Get();
+            }
+            return getObj;
+        }
+
+        public GameObject Get(Transform parent) {
+            var obj = Get();
+            obj.transform.SetParent(parent);
+            return obj;
+        }
+
+        public GameObject Get(Vector3 position,Quaternion rotation) {
+            var obj = Get();
+            obj.transform.SetPositionAndRotation(position,rotation);
+            return obj;
+        }
+
+        public GameObject Get(Vector3 position,Quaternion rotation,Transform parent) {
+            var obj = Get();
+            obj.transform.SetParent(parent);
+            obj.transform.SetPositionAndRotation(position,rotation);
+            return obj;
         }
         /// <summary>
         /// 放回对象
         /// </summary>
         /// <param name="obj"></param>
         public void Release(GameObject obj) {
+            if (_isReusableObject) {
+                LoadReusableScript(obj)?.Release();
+            }
             _pool.Release(obj);
         }
         /// <summary>
@@ -92,6 +156,14 @@ namespace ObjectPool {
         public void ReleaseAll() {
             foreach (var obj in _objects) {
                 _pool.Release(obj);
+            }
+        }
+        /// <summary>
+        /// 放回全部对象并触发每个对象的放回响应
+        /// </summary>
+        public void ReleaseAllTriggerResponse() {
+            foreach (var obj in _objects) {
+                Release(obj);
             }
         }
         /// <summary>
